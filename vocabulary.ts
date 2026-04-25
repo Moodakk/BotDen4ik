@@ -1,8 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Stethoscope, 
-  MessageSquare, 
-  Settings, 
   Info, 
   Search, 
   BookOpen,
@@ -10,16 +8,12 @@ import {
   Smile,
   AlertCircle,
   FileText,
-  Clock,
   Volume2,
   Send,
-  RefreshCcw,
   Sparkles,
-  User,
   Mic,
   Baby,
   Play,
-  HeartPulse,
   CreditCard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
