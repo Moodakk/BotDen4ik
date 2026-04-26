@@ -29,7 +29,7 @@ import { VOCABULARY, VocabItem, Category } from './data/vocabulary';
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const MODEL_NAME = "gemini-1.5-flash";
+const MODEL_NAME = "gemini-2.5-flash";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -43,17 +43,17 @@ const SCENARIOS: Record<SimulationScenario, { title: string; prompt: string; ico
   anamnesis: {
     title: 'První návštěva (Анамнез)',
     icon: FileText,
-    prompt: 'You are Paní Dvořáková, a 45-year-old patient coming for a preventive checkup. You have slightly sensitive gums. The doctor needs to take your medical history. Respond in Czech. Use "Vykání".'
+    prompt: 'You are Paní Dvořáková, a 45-year-old patient coming for a preventive checkup. You have slightly sensitive gums. The doctor (male) needs to take your medical history. Respond in Czech. Use "Vykání". Address the doctor as "pane doktore" (never "paní doktorko").'
   },
   acute: {
     title: 'Akutní bolest (Гострий біль)',
     icon: AlertCircle,
-    prompt: 'You are Pan Marek. You have severe pain in the lower left molar. It started yesterday and kept you awake at night. You are nervous and in pain. Speak Czech naturally, using phrases like "hrozné bolesti" or "nemohl jsem spát".'
+    prompt: 'You are Pan Marek. You have severe pain in the lower left molar. It started yesterday and kept you awake at night. You are nervous and in pain. Speak Czech naturally. Address the doctor as "pane doktore" (never "paní doktorko").'
   },
   child: {
     title: 'Dítě (Дитина)',
     icon: Baby,
-    prompt: 'You are a 7-year-old child named Kubík. You are a bit scared of the drill. The dentist must use friendly language. You respond simply. If the dentist is nice, you calm down.'
+    prompt: 'You are a 7-year-old child named Kubík. You are a bit scared of the drill. The dentist (male) must use friendly language. You respond simply. If the dentist is nice, you calm down. Call the dentist "pane doktore".'
   },
   admin: {
     title: 'Pojišťovna / Recepce',
@@ -133,10 +133,17 @@ export default function App() {
     const cleanText = text.replace(/\[.*?\]/g, '').trim();
     const utterance = new SpeechSynthesisUtterance(cleanText);
     const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.name === selectedVoiceName);
+    
+    // Try to find a Czech voice
+    const voice = voices.find(v => v.name === selectedVoiceName && (v.lang.startsWith('cs') || v.name.toLowerCase().includes('czech')))
+      || voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith('cs-'))
+      || voices.find(v => v.lang.toLowerCase() === 'cs')
+      || voices.find(v => v.name.toLowerCase().includes('czech'));
+    
     if (voice) {
       utterance.voice = voice;
     }
+    // Always set Czech lang — Chrome can use online TTS even without local voice
     utterance.lang = 'cs-CZ';
     utterance.rate = 0.8; 
     window.speechSynthesis.speak(utterance);
@@ -198,14 +205,15 @@ export default function App() {
     try {
       const model = genAI.getGenerativeModel({ 
         model: MODEL_NAME,
-        systemInstruction: `You are a Czech patient in a dental clinic. 
+        systemInstruction: `You are a Czech patient in a dental clinic. The doctor is MALE.
         Scenario: ${SCENARIOS[selectedScenario].title}.
         Patient Info: ${SCENARIOS[selectedScenario].prompt}.
         Rules:
         1. Always respond ONLY in Czech.
         2. Use formal address (Vy).
-        3. Correct user's Czech mistakes in brackets [Like this] at the end of your message.
-        4. Keep responses concise (max 3 sentences).`
+        3. Always address the doctor as "pane doktore" (NEVER "paní doktorko").
+        4. Correct user's Czech mistakes in brackets [Like this] at the end of your message.
+        5. Keep responses concise (max 3 sentences).`
       });
       
       const chat = model.startChat({

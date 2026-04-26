@@ -29,7 +29,7 @@ import { VOCABULARY, VocabItem, Category } from './data/vocabulary';
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-const MODEL_NAME = "gemini-1.5-flash";
+const MODEL_NAME = "gemini-2.5-flash";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -133,10 +133,17 @@ export default function App() {
     const cleanText = text.replace(/\[.*?\]/g, '').trim();
     const utterance = new SpeechSynthesisUtterance(cleanText);
     const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.name === selectedVoiceName);
+    
+    // Try to find a Czech voice
+    const voice = voices.find(v => v.name === selectedVoiceName && (v.lang.startsWith('cs') || v.name.toLowerCase().includes('czech')))
+      || voices.find(v => v.lang.toLowerCase().replace('_', '-').startsWith('cs-'))
+      || voices.find(v => v.lang.toLowerCase() === 'cs')
+      || voices.find(v => v.name.toLowerCase().includes('czech'));
+    
     if (voice) {
       utterance.voice = voice;
     }
+    // Always set Czech lang — Chrome can use online TTS even without local voice
     utterance.lang = 'cs-CZ';
     utterance.rate = 0.8; 
     window.speechSynthesis.speak(utterance);
